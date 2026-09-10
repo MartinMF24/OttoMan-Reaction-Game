@@ -1,0 +1,99 @@
+texto,intencion
+dale para adelante,MOVER
+avanza dos metros,MOVER
+avanzá 2 metros,MOVER
+caminá despacio hacia adelante,MOVER
+camina un poco,MOVER
+andá para adelante,MOVER
+andá para atrás 1 metro,MOVER
+retrocedé un poco,MOVER
+retrocede dos pasos,MOVER
+muévete hacia adelante,MOVER
+movete para atrás,MOVER
+marchá hacia adelante,MOVER
+avanzá rápido 3 metros,MOVER
+avanzá medio metro,MOVER
+camina 4 metros,MOVER
+andá hacia adelante despacio,MOVER
+movete 1 metro,MOVER
+avanzá 0.5 metros a 0.2 m/s,MOVER
+muévete a 2 m/s,MOVER
+avanzá 100 metros,MOVER
+date media vuelta,GIRAR
+media vuelta,GIRAR
+girá a la derecha,GIRAR
+girá 90 grados a la derecha,GIRAR
+girá a la izquierda,GIRAR
+gira noventa grados,GIRAR
+rota hacia la derecha,GIRAR
+rotá a la izquierda,GIRAR
+doblá a la derecha,GIRAR
+doblá a la izquierda,GIRAR
+dale una vuelta,GIRAR
+girá 45 grados a la derecha,GIRAR
+girá 180 grados,GIRAR
+gira hacia la izquierda despacio,GIRAR
+rotá 90 grados,GIRAR
+girá 45° a la derecha y después avanzá,GIRAR
+girá 270 grados,GIRAR
+frená ahí,DETENERSE
+detente ya,DETENERSE
+detenete por favor,DETENERSE
+pará todo,DETENERSE
+para el robot,DETENERSE
+frená ahora,DETENERSE
+no avances,DETENERSE
+no te muevas,DETENERSE
+quieto,DETENERSE
+alto ahí,DETENERSE
+detente inmediatamente,DETENERSE
+pará la marcha,DETENERSE
+frenate ya,DETENERSE
+no camines más,DETENERSE
+frena,DETENERSE
+hacele hola a la clase,SALUDO
+saluda a los estudiantes,SALUDO
+hacé un saludo,SALUDO
+saludá al público,SALUDO
+hacé un saludo a todos,SALUDO
+mandá un saludo,SALUDO
+saluda por favor,SALUDO
+saludá con la mano,SALUDO
+saludá a la gente,SALUDO
+saludá a la cámara,SALUDO
+da un saludo,SALUDO
+saluda a mis amigos,SALUDO
+hacé un gesto de saludo,SALUDO
+saludá a los presentes,SALUDO
+cuánta batería tenés,CONSULTAR_ESTADO
+¿cuánta batería tenés?,CONSULTAR_ESTADO
+cómo estás de batería,CONSULTAR_ESTADO
+¿cómo estás de batería?,CONSULTAR_ESTADO
+decime el estado de la batería,CONSULTAR_ESTADO
+qué nivel de batería te queda,CONSULTAR_ESTADO
+estado del sistema,CONSULTAR_ESTADO
+consultá el estado,CONSULTAR_ESTADO
+cuál es tu estado actual,CONSULTAR_ESTADO
+nivel de carga de batería,CONSULTAR_ESTADO
+cómo viene la batería,CONSULTAR_ESTADO
+porcentaje de batería restante,CONSULTAR_ESTADO
+mostrame tu estado,CONSULTAR_ESTADO
+informá el estado de la batería,CONSULTAR_ESTADO
+qué hora es,DESCONOCIDO
+"hola, ¿cómo te llamás?",DESCONOCIDO
+qué onda,DESCONOCIDO
+cuál es el sentido de la vida,DESCONOCIDO
+contame un chiste,DESCONOCIDO
+quién te programó,DESCONOCIDO
+qué tiempo hace hoy,DESCONOCIDO
+cuál es la capital de francia,DESCONOCIDO
+cómo está el clima afuera,DESCONOCIDO
+salta desde la mesa,DESCONOCIDO
+salta lo más alto posible,DESCONOCIDO
+saltá el obstáculo,DESCONOCIDO
+empujá la caja,DESCONOCIDO
+empuja la mesa con fuerza,DESCONOCIDO
+corré lo más rápido que puedas,DESCONOCIDO
+corre a máxima velocidad,DESCONOCIDO
+sprint hacia la pared,DESCONOCIDO
+tirá todo al suelo,DESCONOCIDO
