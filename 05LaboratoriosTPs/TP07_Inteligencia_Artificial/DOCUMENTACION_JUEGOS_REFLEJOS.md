@@ -390,16 +390,16 @@ Para no duplicar código y mantener un diseño centralizado y de alta performanc
 
 ## 6. Cuadro Comparativo de Librerías y Tecnologías
 
-| Componente / Tarea | Juego Inicial (`juego_reflejos.py`) | Juego con Visión (`juego_reflejos_vision.py`) | Juego Competencia (`juego_competencia.py`) |
-|:---|:---|:---|:---|
-| **Simulador de Física** | `mujoco` (Modelo único G1) | `mujoco` (Modelo único G1) | `mujoco` (`MjSpec` con 2 robots en una arena) |
-| **Detección de la Luz** | Lectura directa del entorno | Segmentación de color en `numpy` (visión) | Lectura compartida de zona neutral central |
-| **Cálculo de Coordenada 3D** | Estática / Predeterminada | Reconstrucción estenopeica RGB-D por rayos | Estática con variación espacial (*Jitter*) |
-| **Cámara / Renderizado** | Visor 3D interactivo | `mujoco.Renderer` (Offscreen RGB-D) | Visor 3D panorámico lateral ($68^\circ$) |
-| **Cinemática Inversa** | DLS IK (1 robot, 2 brazos) | DLS IK guiado por visión 3D | DLS IK dual concurrente (2 robots simultáneos) |
-| **Marcador Gráfico en Vivo** | `Pillow` + `viewer.set_images` (Premier League Individual) | `Pillow` + `viewer.set_images` (Premier League Individual Visión) | `Pillow` + `viewer.set_images` (Premier League Dual Azul vs Rojo) |
-| **Generación de Reportes** | `matplotlib` (Tiempos individuales) | `matplotlib` (Tiempos + HUD de visión) | `matplotlib` (Evolución de marcador y tiempos) |
-| **Personalización Visual** | Carrocería original Unitree G1 | Carrocería original Unitree G1 | Coloración completa (Azul vs Rojo en MjSpec) |
+| Componente / Tarea | Juego Inicial (`juego_reflejos.py`) | Juego con Visión (`juego_reflejos_vision.py`) | Juego Competencia (`juego_competencia.py`) | Duelo Humano vs Robot (`juego_humano_vs_robot.py`) |
+|:---|:---|:---|:---|:---|
+| **Simulador de Física** | `mujoco` (Modelo único G1) | `mujoco` (Modelo único G1) | `mujoco` (`MjSpec` con 2 robots en arena) | `mujoco` (Modelo único G1 con cámara frontal) |
+| **Detección de la Luz** | Lectura directa del entorno | Segmentación de color en `numpy` (visión) | Lectura compartida de zona neutral central | Lectura directa con mapeo espacial 1 a 6 |
+| **Cálculo de Coordenada 3D** | Estática / Predeterminada | Reconstrucción estenopeica RGB-D por rayos | Estática con variación espacial (*Jitter*) | 6 luces en arco ordenadas de Izq. a Der. |
+| **Cámara / Renderizado** | Visor 3D interactivo | `mujoco.Renderer` (Offscreen RGB-D) | Visor 3D panorámico lateral ($68^\circ$) | **Visor Frontal ($180^\circ$, cara a cara con el robot)** |
+| **Cinemática Inversa** | DLS IK (1 robot, 2 brazos) | DLS IK guiado por visión 3D | DLS IK dual concurrente (2 robots simultáneos) | DLS IK con latencia biológica configurable |
+| **Control del Jugador** | Autónomo por cinemática | Autónomo guiado por visión | Autónomo dual (Robot 1 vs Robot 2) | **Teclado Humano: Teclas `1` a `6`** |
+| **Marcador en Vivo** | Tarjeta Premier League Individual | Tarjeta Premier League Visión | Tarjeta Premier League Dual Azul vs Rojo | **Tarjeta Premier League Humano vs Robot** |
+| **Generación de Reportes** | `matplotlib` (Tiempos individuales) | `matplotlib` (Tiempos + HUD de visión) | `matplotlib` (Evolución de marcador y tiempos) | `matplotlib` (Comparativa Humano vs Robot) |
 
 ---
 
@@ -407,21 +407,32 @@ Para no duplicar código y mantener un diseño centralizado y de alta performanc
 
 Todos los módulos se encuentran listos para ejecutar en el entorno del laboratorio:
 
-### 1. Juego de Reflejos Inicial (1 Robot con Marcador PL)
+### 1. Duelo de Reflejos en Vivo (Humano vs Robot Unitree G1)
+- **Vía Launcher:** Doble clic en `05LaboratoriosTPs\TP07_Inteligencia_Artificial\JUGAR_HUMANO_VS_ROBOT.bat`.
+- **Por Terminal:**
+  ```powershell
+  py -3 mi_desarrollo\juego_humano_vs_robot.py --duracion 30 --dificultad medio
+  # Modo consola rápido (sin ventana):
+  py -3 mi_desarrollo\juego_humano_vs_robot.py --sin-ventana --duracion 10
+  ```
+  - **Mapeo de teclas de izquierda a derecha:** `[1]` Ext. Izq, `[2]` Arr. Izq, `[3]` Abj. Centro-Izq, `[4]` Abj. Centro-Der, `[5]` Arr. Der, `[6]` Ext. Der.
+  - **Cuenta atrás:** 5 a 0 segundos antes de comenzar la partida con la cámara frontal ya alineada.
+
+### 2. Juego de Reflejos Inicial (1 Robot con Marcador PL)
 - **Vía Launcher:** Doble clic en `05LaboratoriosTPs\TP07_Inteligencia_Artificial\JUGAR_REFLEJOS.bat`.
 - **Por Terminal:**
   ```powershell
   py -3 mi_desarrollo\juego_reflejos.py --duracion 30
   ```
 
-### 2. Juego de Reflejos con Visión Artificial (1 Robot con Cámara y Marcador PL)
+### 3. Juego de Reflejos con Visión Artificial (1 Robot con Cámara y Marcador PL)
 - **Vía Launcher:** Doble clic en `05LaboratoriosTPs\TP07_Inteligencia_Artificial\JUGAR_REFLEJOS_VISION.bat`.
 - **Por Terminal:**
   ```powershell
   py -3 mi_desarrollo\juego_reflejos_vision.py --duracion 30
   ```
 
-### 3. Modo Competencia (2 Robots — Azul vs Rojo con Marcador Dual PL)
+### 4. Modo Competencia (2 Robots — Azul vs Rojo con Marcador Dual PL)
 - **Vía Launcher:** Doble clic en `05LaboratoriosTPs\TP07_Inteligencia_Artificial\JUGAR_COMPETENCIA.bat`.
 - **Por Terminal:**
   ```powershell
@@ -438,4 +449,5 @@ A lo largo del proyecto se demostró:
 1. **Factibilidad del Control Cinemático DLS en Humanoides Complejos:** El algoritmo de Mínimos Cuadrados Amortiguados permite manipular extremidades de 7 GDL en tiempo real con tiempos de respuesta inferiores a $0.25\text{ segundos}$ por toque, sin bloqueos por singularidades.
 2. **Robustez de la Visión por Computadora en el Bucle de Control:** La combinación del modelo estenopeico inverso con el búfer de profundidad permitió al robot operar de forma autónoma sin depender de datos absolutos del simulador, tolerando variaciones aleatorias continuas en la posición de los objetivos.
 3. **Escalabilidad Multirrobot mediante `MjSpec`:** La nueva arquitectura de ensamblaje de MuJoCo 3 facilitó la creación de competencias 1 vs 1 totalmente reactivas, combinando control cinemático independiente, arbitraje estricto y personalización estética limpia de los robots.
-4. **Telemetría Gráfica en Vivo sin Impacto de Rendimiento:** La integración del marcador estilo Premier League vía `Pillow` y `viewer.set_images` proporcionó una experiencia de transmisión deportiva profesional en tiempo real manteniendo la tasa de refresco a $60\text{ FPS}$.
+4. **Interactividad Humano vs Robot con Entrada de Baja Latencia:** La incorporación del duelo directo contra un humano con teclado de acceso directo (1 a 6 de izquierda a derecha), cámara frontal fija y cuenta regresiva de 5 segundos logró un entorno de entrenamiento lúdico, justo y altamente competitivo.
+5. **Telemetría Gráfica en Vivo sin Impacto de Rendimiento:** La integración del marcador estilo Premier League consolidado en un banner único de alta definición proporcionó una experiencia de transmisión deportiva profesional en tiempo real manteniendo la tasa de refresco a $60\text{ FPS}$.

@@ -228,6 +228,99 @@ class MarcadorPremierLeague:
         self._cache_competencia[cache_key] = arr
         return arr
 
+    def renderizar_humano_vs_robot(
+        self,
+        puntos_humano: int,
+        puntos_robot: int,
+        tiempo_restante: float,
+        cuenta_atras: Optional[float] = None,
+        ultimo_ganador: Optional[str] = None,
+        tiempo_toque: Optional[float] = None,
+        nombre_luz: str = ""
+    ) -> np.ndarray:
+        """Genera el marcador Premier League para el modo Humano vs Robot G1."""
+        deciseg = int(max(0.0, tiempo_restante) * 10)
+        cuenta_int = int((cuenta_atras or 0.0) * 10)
+        cache_key = (puntos_humano, puntos_robot, deciseg, cuenta_int, ultimo_ganador or "", round(tiempo_toque or 0.0, 3))
+        if cache_key in self._cache_competencia:
+            return self._cache_competencia[cache_key]
+
+        ahora = time.perf_counter()
+        pts_actuales = (puntos_humano, puntos_robot)
+        if pts_actuales != self._ultimo_puntos_comp:
+            self._ultimo_puntos_comp = pts_actuales
+            self._ultimo_punto_tiempo = ahora
+
+        es_flash = (ahora - self._ultimo_punto_tiempo) < 0.45
+
+        w, h = 530, 74
+        img = Image.new("RGB", (w, h), COLOR_PANEL_DARK)
+        draw = ImageDraw.Draw(img)
+
+        borde_color = COLOR_PL_NEON_GREEN if es_flash else COLOR_BORDER
+        draw.rounded_rectangle([0, 0, w - 1, h - 1], radius=8, outline=borde_color, width=2)
+
+        # 1. Logo Premier League (Izquierda)
+        draw.rounded_rectangle([2, 2, 44, 48], radius=6, fill=COLOR_PL_PURPLE)
+        draw.rectangle([2, 2, 7, 48], fill=COLOR_PL_NEON_GREEN)
+        draw.text((15, 12), "PL", fill=COLOR_PL_NEON_GREEN, font=self.f_logo)
+        draw.text((12, 31), "DUEL", fill=COLOR_WHITE, font=self.f_sublogo)
+
+        # 2. Equipo Humano (Verde esmeralda / Cyan)
+        color_humano = (0, 140, 160)
+        draw.rectangle([44, 2, 145, 48], fill=color_humano)
+        draw.text((54, 16), "HUMANO", fill=COLOR_WHITE, font=self.f_team)
+        draw.text((54, 33), "TECLADO 1-6", fill=(210, 245, 255), font=self.f_sublogo)
+
+        # 3. Marcador Humano (Caja Blanca)
+        draw.rectangle([145, 2, 195, 48], fill=COLOR_WHITE)
+        draw.text((154, 10), f"{puntos_humano:02d}", fill=color_humano, font=self.f_pts)
+
+        # 4. Separador Central Oficial Premier League (Morado + Neon)
+        draw.rectangle([195, 2, 225, 48], fill=COLOR_PL_PURPLE)
+        draw.text((203, 16), "VS", fill=COLOR_PL_NEON_GREEN, font=self.f_logo)
+
+        # 5. Marcador Robot (Caja Blanca)
+        draw.rectangle([225, 2, 275, 48], fill=COLOR_WHITE)
+        draw.text((234, 10), f"{puntos_robot:02d}", fill=COLOR_RED_TEAM, font=self.f_pts)
+
+        # 6. Equipo Robot (Robot G1 - Rojo)
+        draw.rectangle([275, 2, 376, 48], fill=COLOR_RED_TEAM)
+        draw.text((285, 16), "ROBOT G1", fill=COLOR_WHITE, font=self.f_team)
+        draw.text((285, 33), "UNITREE IA", fill=(255, 210, 220), font=self.f_sublogo)
+
+        # 7. Reloj / Cuenta atrás
+        draw.rounded_rectangle([376, 2, w - 3, 48], radius=6, fill=COLOR_PL_PURPLE)
+        if cuenta_atras is not None and cuenta_atras > 0.0:
+            draw.text((386, 6), "INICIA EN", fill=COLOR_PL_NEON_GREEN, font=self.f_label)
+            draw.text((386, 20), f"  {cuenta_atras:.1f} s", fill=COLOR_PL_NEON_GREEN, font=self.f_clock)
+        else:
+            draw.text((386, 6), "MATCH TIME", fill=(200, 190, 215), font=self.f_label)
+            t_pos = max(0.0, tiempo_restante)
+            mins = int(t_pos // 60)
+            segs = int(t_pos % 60)
+            dec = int((t_pos * 10) % 10)
+            draw.text((386, 20), f"{mins:02d}:{segs:02d}.{dec}", fill=COLOR_WHITE, font=self.f_clock)
+
+        # 8. Tira inferior de estado (resultado y guía de teclas)
+        draw.rectangle([2, 49, w - 3, h - 3], fill=(16, 16, 22))
+        if cuenta_atras is not None and cuenta_atras > 0.0:
+            txt_status = "¡PREPARATE! TECLAS [1] [2] [3] [4] [5] [6] DE IZQUIERDA A DERECHA"
+            draw.text((12, 53), txt_status, fill=COLOR_PL_NEON_GREEN, font=self.f_status)
+        elif ultimo_ganador:
+            gan_color = COLOR_PL_NEON_GREEN if "HUMANO" in ultimo_ganador.upper() else (255, 110, 120)
+            t_str = f" ({tiempo_toque:.3f} s)" if tiempo_toque else ""
+            txt_status = f"ULTIMO PUNTO: ¡{ultimo_ganador.upper()}!{t_str} | TECLAS 1-6"
+            draw.text((12, 53), txt_status, fill=gan_color, font=self.f_status)
+        else:
+            draw.text((12, 53), "DUELO EN VIVO: PRESIONA LA TECLA DE LA LUZ ANTES QUE EL ROBOT", fill=(190, 190, 205), font=self.f_status)
+
+        arr = np.array(img, dtype=np.uint8)
+        if len(self._cache_competencia) > 30:
+            self._cache_competencia.clear()
+        self._cache_competencia[cache_key] = arr
+        return arr
+
     def generar_texto_individual(
         self,
         puntos: int,
@@ -237,7 +330,7 @@ class MarcadorPremierLeague:
         nombre_luz: str = "",
         modo_vision: bool = False
     ) -> tuple[str, str]:
-        """Genera las columnas de texto para el overlay nativo de MuJoCo (mjr_overlay)."""
+        """Genera una tarjeta única e integrada Premier League para el modo individual."""
         tit = "G1 VISION (RGB-D)" if modo_vision else "G1 REFLEJOS"
         t_pos = max(0.0, tiempo_restante)
         mins = int(t_pos // 60)
@@ -245,20 +338,16 @@ class MarcadorPremierLeague:
         dec = int((t_pos * 10) % 10)
         reloj_str = f"{mins:02d}:{segs:02d}.{dec}"
 
-        ult_str = f"{ultimo_toque:.3f} s" if (ultimo_toque and ultimo_toque > 0) else "---"
+        ult_str = f"{ultimo_toque:.3f} s" if (ultimo_toque and ultimo_toque > 0) else "LISTO"
         luz_str = nombre_luz.upper() if nombre_luz else "EN ESPERA"
 
-        col1 = (
-            f"[PL] {tit}\n"
-            f"PUNTOS:   {puntos:02d} TOCADAS\n"
-            f"ULTIMO:   {ult_str}"
+        # Tarjeta única Premier League sin divisiones
+        tarjeta = (
+            f"  [PL] PREMIER LEAGUE  •  UNITREE {tit}\n"
+            f"  PUNTOS: [ {puntos:02d} ]      RELOJ: {reloj_str}      RONDA: #{ronda}\n"
+            f"  TOQUE EXITOSO: {ult_str}  |  LUZ: {luz_str}"
         )
-        col2 = (
-            f"RELOJ:  {reloj_str}\n"
-            f"RONDA:  #{ronda}\n"
-            f"LUZ:    {luz_str}"
-        )
-        return col1, col2
+        return tarjeta, ""
 
     def generar_texto_competencia(
         self,
@@ -269,7 +358,7 @@ class MarcadorPremierLeague:
         ultimo_ganador: Optional[str] = None,
         tiempo_toque: Optional[float] = None
     ) -> tuple[str, str]:
-        """Genera las columnas de texto para el overlay de competencia (Robot Azul vs Robot Rojo)."""
+        """Genera una tarjeta única e integrada Premier League para el modo competencia dual."""
         t_pos = max(0.0, tiempo_restante)
         mins = int(t_pos // 60)
         segs = int(t_pos % 60)
@@ -277,30 +366,69 @@ class MarcadorPremierLeague:
         reloj_str = f"{mins:02d}:{segs:02d}.{dec}"
 
         if puntos_r1 > puntos_r2:
-            lider = f"AZUL (+{puntos_r1 - puntos_r2})"
+            lider = f"LIDER: AZUL (+{puntos_r1 - puntos_r2})"
         elif puntos_r2 > puntos_r1:
-            lider = f"ROJO (+{puntos_r2 - puntos_r1})"
+            lider = f"LIDER: ROJO (+{puntos_r2 - puntos_r1})"
         else:
             lider = "EMPATE"
 
         if ultimo_ganador:
-            t_str = f" ({tiempo_toque:.3f}s)" if tiempo_toque else ""
+            t_str = f" ({tiempo_toque:.3f} s)" if tiempo_toque else ""
             gan_clean = ultimo_ganador.replace("¡", "").replace("!", "").upper()
-            ult_str = f"PUNTO {gan_clean}{t_str}"
+            ult_str = f"¡PUNTO PARA {gan_clean}!{t_str}"
         else:
-            ult_str = "DUELO EN VIVO"
+            ult_str = "DUELO EN VIVO (ZONA CENTRAL)"
 
-        col1 = (
-            f"[PL] DUELO DE REFLEJOS\n"
-            f"[AZUL]  {puntos_r1:02d}  -  {puntos_r2:02d}  [ROJO]\n"
-            f"ULTIMO: {ult_str}"
+        tarjeta = (
+            f"  [PL] PREMIER LEAGUE MATCH  •  UNITREE G1 DUAL\n"
+            f"  [AZUL]  {puntos_r1:02d}   ─── VS ───   {puntos_r2:02d}  [ROJO]    RELOJ: {reloj_str}  (#{ronda})\n"
+            f"  {ult_str}  |  {lider}"
         )
-        col2 = (
-            f"RELOJ:  {reloj_str}\n"
-            f"LIDER:  {lider}\n"
-            f"RONDA:  #{ronda}"
+        return tarjeta, ""
+
+    def generar_texto_humano_vs_robot(
+        self,
+        puntos_humano: int,
+        puntos_robot: int,
+        tiempo_restante: float,
+        ronda: int = 1,
+        cuenta_atras: Optional[float] = None,
+        ultimo_ganador: Optional[str] = None,
+        tiempo_toque: Optional[float] = None,
+        nombre_luz: str = ""
+    ) -> tuple[str, str]:
+        """Genera una tarjeta única e integrada Premier League para el duelo Humano vs Robot."""
+        t_pos = max(0.0, tiempo_restante)
+        mins = int(t_pos // 60)
+        segs = int(t_pos % 60)
+        dec = int((t_pos * 10) % 10)
+        reloj_str = f"{mins:02d}:{segs:02d}.{dec}"
+
+        if cuenta_atras is not None and cuenta_atras > 0.0:
+            tarjeta = (
+                f"  [PL] PREMIER LEAGUE DUEL  •  HUMANO vs ROBOT G1\n"
+                f"  [HUMANO]  00   ─── VS ───   00  [ROBOT G1]    ¡PREPARATE!\n"
+                f"  LA PARTIDA COMIENZA EN:  {cuenta_atras:.1f} s ...\n"
+                f"  TECLAS: [1][2][3][4][5][6] (de Izquierda a Derecha)"
+            )
+            return tarjeta, ""
+
+        if ultimo_ganador:
+            t_str = f" ({tiempo_toque:.3f} s)" if tiempo_toque else ""
+            gan_clean = ultimo_ganador.replace("¡", "").replace("!", "").upper()
+            ult_str = f"¡PUNTO PARA {gan_clean}!{t_str}"
+        else:
+            ult_str = "DUELO EN VIVO: PRESIONA LA TECLA ANTES QUE EL ROBOT TOQUE"
+
+        luz_str = f" | LUZ: {nombre_luz.upper()}" if nombre_luz else ""
+
+        tarjeta = (
+            f"  [PL] PREMIER LEAGUE DUEL  •  HUMANO vs ROBOT G1\n"
+            f"  [HUMANO]  {puntos_humano:02d}   ─── VS ───   {puntos_robot:02d}  [ROBOT G1]    RELOJ: {reloj_str}  (#{ronda})\n"
+            f"  {ult_str}{luz_str}\n"
+            f"  TECLAS: [1][2][3][4][5][6] (de Izquierda a Derecha)"
         )
-        return col1, col2
+        return tarjeta, ""
 
     def aplicar_al_visor_individual(
         self,
@@ -312,13 +440,13 @@ class MarcadorPremierLeague:
         nombre_luz: str = "",
         modo_vision: bool = False
     ):
-        """Aplica el marcador individual en la esquina superior izquierda del visor."""
+        """Aplica el marcador Premier League individual como una tarjeta única en el visor."""
         if viewer is None:
             return
 
-        # 1. Overlay nativo de MuJoCo en TOPLEFT (100% visible y garantizado)
+        # 1. Overlay Premier League (tarjeta única, 100% visible sin duplicaciones)
         try:
-            col1, col2 = self.generar_texto_individual(
+            tarjeta, _ = self.generar_texto_individual(
                 puntos=puntos,
                 tiempo_restante=tiempo_restante,
                 ronda=ronda,
@@ -328,11 +456,11 @@ class MarcadorPremierLeague:
             )
             font = mujoco.mjtFontScale.mjFONTSCALE_150
             pos = mujoco.mjtGridPos.mjGRID_TOPLEFT
-            viewer.set_texts([(font, pos, col1, col2)])
+            viewer.set_texts([(font, pos, tarjeta, "")])
         except Exception:
             pass
 
-        # 2. Overlay gráfico con imagen PIL (si el viewport lo permite)
+        # 2. Overlay gráfico con imagen PIL (para visores que admitan set_images)
         try:
             arr = self.renderizar_individual(
                 puntos=puntos,
@@ -342,9 +470,9 @@ class MarcadorPremierLeague:
                 modo_vision=modo_vision
             )
             h_img, w_img = arr.shape[:2]
-            v_h = viewer.viewport.height
-            v_bottom = viewer.viewport.bottom
-            v_left = viewer.viewport.left
+            v_h = getattr(viewer.viewport, "height", 720) or 720
+            v_bottom = getattr(viewer.viewport, "bottom", 0) or 0
+            v_left = getattr(viewer.viewport, "left", 0) or 0
             pos_x = v_left + 15
             pos_y = max(0, v_bottom + v_h - h_img - 15)
             rect = mujoco.MjrRect(pos_x, pos_y, w_img, h_img)
@@ -362,13 +490,13 @@ class MarcadorPremierLeague:
         ultimo_ganador: Optional[str] = None,
         tiempo_toque: Optional[float] = None
     ):
-        """Aplica el marcador dual de competencia en la esquina superior izquierda del visor."""
+        """Aplica el marcador Premier League de competencia como una tarjeta única en el visor."""
         if viewer is None:
             return
 
-        # 1. Overlay nativo de MuJoCo en TOPLEFT (100% visible y garantizado)
+        # 1. Overlay Premier League (tarjeta única, 100% visible sin duplicaciones)
         try:
-            col1, col2 = self.generar_texto_competencia(
+            tarjeta, _ = self.generar_texto_competencia(
                 puntos_r1=puntos_r1,
                 puntos_r2=puntos_r2,
                 tiempo_restante=tiempo_restante,
@@ -378,11 +506,11 @@ class MarcadorPremierLeague:
             )
             font = mujoco.mjtFontScale.mjFONTSCALE_150
             pos = mujoco.mjtGridPos.mjGRID_TOPLEFT
-            viewer.set_texts([(font, pos, col1, col2)])
+            viewer.set_texts([(font, pos, tarjeta, "")])
         except Exception:
             pass
 
-        # 2. Overlay gráfico con imagen PIL (si el viewport lo permite)
+        # 2. Overlay gráfico con imagen PIL
         try:
             arr = self.renderizar_competencia(
                 puntos_r1=puntos_r1,
@@ -392,9 +520,65 @@ class MarcadorPremierLeague:
                 tiempo_toque=tiempo_toque
             )
             h_img, w_img = arr.shape[:2]
-            v_h = viewer.viewport.height
-            v_bottom = viewer.viewport.bottom
-            v_left = viewer.viewport.left
+            v_h = getattr(viewer.viewport, "height", 720) or 720
+            v_bottom = getattr(viewer.viewport, "bottom", 0) or 0
+            v_left = getattr(viewer.viewport, "left", 0) or 0
+            pos_x = v_left + 15
+            pos_y = max(0, v_bottom + v_h - h_img - 15)
+            rect = mujoco.MjrRect(pos_x, pos_y, w_img, h_img)
+            viewer.set_images([(rect, arr)])
+        except Exception:
+            pass
+
+    def aplicar_al_visor_humano_vs_robot(
+        self,
+        viewer,
+        puntos_humano: int,
+        puntos_robot: int,
+        tiempo_restante: float,
+        ronda: int = 1,
+        cuenta_atras: Optional[float] = None,
+        ultimo_ganador: Optional[str] = None,
+        tiempo_toque: Optional[float] = None,
+        nombre_luz: str = ""
+    ):
+        """Aplica el marcador Premier League de Humano vs Robot como tarjeta única en el visor."""
+        if viewer is None:
+            return
+
+        # 1. Overlay Premier League (tarjeta única, 100% visible sin duplicaciones)
+        try:
+            tarjeta, _ = self.generar_texto_humano_vs_robot(
+                puntos_humano=puntos_humano,
+                puntos_robot=puntos_robot,
+                tiempo_restante=tiempo_restante,
+                ronda=ronda,
+                cuenta_atras=cuenta_atras,
+                ultimo_ganador=ultimo_ganador,
+                tiempo_toque=tiempo_toque,
+                nombre_luz=nombre_luz
+            )
+            font = mujoco.mjtFontScale.mjFONTSCALE_150
+            pos = mujoco.mjtGridPos.mjGRID_TOPLEFT
+            viewer.set_texts([(font, pos, tarjeta, "")])
+        except Exception:
+            pass
+
+        # 2. Overlay gráfico con imagen PIL
+        try:
+            arr = self.renderizar_humano_vs_robot(
+                puntos_humano=puntos_humano,
+                puntos_robot=puntos_robot,
+                tiempo_restante=tiempo_restante,
+                cuenta_atras=cuenta_atras,
+                ultimo_ganador=ultimo_ganador,
+                tiempo_toque=tiempo_toque,
+                nombre_luz=nombre_luz
+            )
+            h_img, w_img = arr.shape[:2]
+            v_h = getattr(viewer.viewport, "height", 720) or 720
+            v_bottom = getattr(viewer.viewport, "bottom", 0) or 0
+            v_left = getattr(viewer.viewport, "left", 0) or 0
             pos_x = v_left + 15
             pos_y = max(0, v_bottom + v_h - h_img - 15)
             rect = mujoco.MjrRect(pos_x, pos_y, w_img, h_img)
@@ -408,9 +592,9 @@ class MarcadorPremierLeague:
             return
         h_img, w_img = imagen_arr.shape[:2]
         try:
-            v_h = viewer.viewport.height
-            v_bottom = viewer.viewport.bottom
-            v_left = viewer.viewport.left
+            v_h = getattr(viewer.viewport, "height", 720) or 720
+            v_bottom = getattr(viewer.viewport, "bottom", 0) or 0
+            v_left = getattr(viewer.viewport, "left", 0) or 0
             pos_x = v_left + margen_x
             pos_y = max(0, v_bottom + v_h - h_img - margen_y)
             rect = mujoco.MjrRect(pos_x, pos_y, w_img, h_img)
