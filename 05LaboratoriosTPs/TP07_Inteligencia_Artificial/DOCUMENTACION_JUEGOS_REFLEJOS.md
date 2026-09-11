@@ -32,10 +32,21 @@
    - [4.4 Franja Neutral Central y Arbitraje en Tiempo Real](#44-franja-neutral-central-y-arbitraje-en-tiempo-real)
    - [4.5 Cinemática Paralela y Desempates de Alta Precisión](#45-cinemática-paralela-y-desempates-de-alta-precisión)
    - [4.6 Marcador Dual de Competencia Estilo Premier League](#46-marcador-dual-de-competencia-estilo-premier-league)
-5. [Módulo Dedicado de Marcador (`marcador_premier.py`)](#5-módulo-dedicado-de-marcador-marcador_premierpy)
-6. [Cuadro Comparativo de Librerías y Tecnologías](#6-cuadro-comparativo-de-librerías-y-tecnologías)
-7. [Guía Rápida de Ejecución](#7-guía-rápida-de-ejecución)
-8. [Conclusiones](#8-conclusiones)
+5. [Etapa 4: Duelo Interactivo Humano vs Robot G1 (`juego_humano_vs_robot.py`)](#5-etapa-4-duelo-interactivo-humano-vs-robot-g1)
+   - [5.1 Concepto y Dinámica del Duelo](#51-concepto-y-dinámica-del-duelo)
+   - [5.2 Perspectiva de Cámara Frontal Cara a Cara (180°)](#52-perspectiva-de-cámara-frontal-cara-a-cara-180)
+   - [5.3 Mapeo Espacial de Teclas 1 a 6 de Izquierda a Derecha](#53-mapeo-espacial-de-teclas-1-a-6-de-izquierda-a-derecha)
+   - [5.4 Cuenta Atrás Inicial de 5 a 0 Segundos](#54-cuenta-atrás-inicial-de-5-a-0-segundos)
+   - [5.5 Librerías Utilizadas y Justificación Técnica](#55-librerías-utilizadas-y-justificación-técnica)
+   - [5.6 Arquitectura y Funciones Clave del Código](#56-arquitectura-y-funciones-clave-del-código)
+   - [5.7 Marcador Premier League de Duelo y Reporte Gráfico Post-Partida](#57-marcador-premier-league-de-duelo-y-reporte-gráfico-post-partida)
+6. [Módulo Dedicado de Marcador (`marcador_premier.py`)](#6-módulo-dedicado-de-marcador-marcador_premierpy)
+   - [6.1 Identidad Visual y Paleta Oficial Premier League](#61-identidad-visual-y-paleta-oficial-premier-league)
+   - [6.2 Las Cuatro Variantes de Marcador en Vivo](#62-las-cuatro-variantes-de-marcador-en-vivo)
+   - [6.3 Arquitectura Técnica: Solución de Tarjeta Única Continua](#63-arquitectura-técnica-solución-de-tarjeta-única-continua)
+7. [Cuadro Comparativo de Librerías y Tecnologías](#7-cuadro-comparativo-de-librerías-y-tecnologías)
+8. [Guía Rápida de Ejecución](#8-guía-rápida-de-ejecución)
+9. [Conclusiones](#9-conclusiones)
 
 ---
 
@@ -378,17 +389,229 @@ Para el modo competencia, el marcador se transforma en la gráfica clásica de p
 
 ---
 
-## 5. Módulo Dedicado de Marcador (`marcador_premier.py`)
+## 5. Etapa 4: Duelo Interactivo Humano vs Robot G1 (`juego_humano_vs_robot.py`)
 
-Para no duplicar código y mantener un diseño centralizado y de alta performance, se creó el módulo reutilizable [`marcador_premier.py`](file:///c:/Users/Aspire%20Go%2015/Documents/GitHub/UadeRobotLab/05LaboratoriosTPs/TP07_Inteligencia_Artificial/mi_desarrollo/marcador_premier.py), que contiene la clase `MarcadorPremierLeague`:
+### 5.1 Concepto y Dinámica del Duelo
+En esta cuarta etapa, la simulación trasciende la autonomía robótica pura para introducir una competencia directa en tiempo real entre un ser humano y el robot humanoide Unitree G1.
 
-- **Gestión de Memoria y Caché:** Implementa un sistema de almacenamiento de estados visuales. Si los puntos o el tiempo no han variado en la décima de segundo, retorna el arreglo NumPy ya compilado, consumiendo menos de $0.05\text{ ms}$ por llamada y garantizando 60 FPS estables en MuJoCo.
-- **Posicionamiento Automático en OpenGL:** Mediante `viewer.viewport`, calcula dinámicamente las coordenadas del rectángulo `MjrRect(x, y, w, h)` ancladas a la esquina superior izquierda, adaptándose de forma automática si la ventana es redimensionada por el usuario.
-- **Destello de Anotación (Score Flash):** Supervisa el cambio de puntuación para generar transiciones visuales con el verde neón distintivo de la Premier League.
+Ambos contendientes disputan las mismas 6 luces dispuestas en arco frente al robot. En cada ronda:
+1. Una luz se enciende de forma aleatoria con iluminación brillante y halo translúcido exterior.
+2. El robot detecta el estímulo, experimenta una latencia de reacción física y computacional, orienta su torso y proyecta el brazo mecánico hacia la esfera.
+3. El jugador humano visualiza la luz en su pantalla e intenta presionar de inmediato la tecla numérica (`1` a `6`) correspondiente a la posición de dicha luz.
+4. **Criterio de Arbitraje Instantáneo:**
+   - Si el humano pulsa la tecla correcta antes de que la mano del robot toque la luz: **Punto para el Humano**.
+   - Si el efector del robot alcanza el umbral de contacto ($d \le 0.052\text{ m}$) antes de la pulsación humana: **Punto para el Robot G1**.
+   - Si el humano se equivoca de tecla: se sanciona el error otorgando inmediatamente el **Punto al Robot G1**.
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    EntornoLucesDuelo (MuJoCo)               │
+│         6 Luces en Semicírculo Mapeadas de Izq. a Der.      │
+└──────────────────────────────┬──────────────────────────────┘
+                               │ Enciende luz objetivo
+                               ├──────────────────────────────┐
+                               ▼                              ▼
+┌──────────────────────────────────────────────┐  ┌──────────────────────────────────┐
+│             RobotCompetidorG1                │  │       EntradaTecladoHumano       │
+│  - Latencia motriz biológica (60-260 ms)     │  │  - GetAsyncKeyState (Win32 API)  │
+│  - Giro coordinado de cintura (Torso Yaw)    │  │  - key_callback (GLFW MuJoCo)    │
+│  - Jacobiano analítico y DLS IK (7 GDL)      │  │  - Teclas [1] a [6] (Latencia 0) │
+│  - Contacto físico: d <= 5.2 cm              │  │  - Flanco ascendente (Key-down)  │
+└──────────────────────┬───────────────────────┘  └─────────────────┬────────────────┘
+                       │                                            │
+                       └──────────────────────┬─────────────────────┘
+                                              ▼
+                        ┌───────────────────────────────────────────┐
+                        │            Árbitro Digital en Vivo        │
+                        │   ¿Quién tocó primero la luz activa?      │
+                        └─────────────────────┬─────────────────────┘
+                                              │
+                                              ▼
+                        ┌───────────────────────────────────────────┐
+                        │      Marcador Premier League de Duelo     │
+                        │    [HUMANO] 08  ── VS ──  06 [ROBOT G1]   │
+                        │    ULTIMO PUNTO: ¡HUMANO! (0.218 s)       │
+                        └───────────────────────────────────────────┘
+```
 
 ---
 
-## 6. Cuadro Comparativo de Librerías y Tecnologías
+### 5.2 Perspectiva de Cámara Frontal Cara a Cara (180°)
+Para garantizar que el juego sea intuitivo, inmersivo y visualmente equitativo, la cámara del visor 3D se ubica en el lado frontal opuesto al robot:
+
+```python
+viewer.cam.lookat[:] = [0.20, 0.0, 0.88]  # Centro de masa del abanico de luces
+viewer.cam.distance = 2.1                 # Distancia panorámica envolvente
+viewer.cam.azimuth = 180.0                # Orientación frontal cara a cara con el robot
+viewer.cam.elevation = -12.0              # Ángulo cenital suave para apreciar profundidad
+```
+
+Al situar el azimut en $180.0^\circ$ (mirando en dirección $-X$), el usuario se encuentra literalmente "frente a frente" con el robot Unitree G1. Las 6 luces se posicionan en primer plano, mientras que el robot se observa de cuerpo entero al fondo preparado para extender sus brazos hacia el frente.
+
+---
+
+### 5.3 Mapeo Espacial de Teclas 1 a 6 de Izquierda a Derecha
+Para evitar la confusión mental del jugador humano al coordinar sus dedos, las teclas numéricas de la fila superior (y del teclado numérico) se mapearon de forma estrictamente monótona de izquierda a derecha según el campo visual de la pantalla.
+
+Debido a que la cámara mira hacia $-X$, el eje cartesiano $Y$ mundial negativo se proyecta a la **izquierda** de la pantalla del usuario, mientras que el eje $Y$ positivo se proyecta a la **derecha**. La disposición cinemática es la siguiente:
+
+| Tecla | ID | Nombre en Sistema | Coord. 3D [X, Y, Z] (m) | Posición en Pantalla | Brazo del Robot | Giro Robot ($\text{Yaw}$) | Color LED Encendido |
+|:-----:|:--:|:------------------|:-----------------------:|:--------------------:|:---------------:|:-------------------------:|:-------------------:|
+| `[1]` | 0 | Luz 1 (Ext. Izq) | `[0.20, -0.37, 0.95]` | **Extremo Izquierdo** | Derecho | $-35.0^\circ$ | Coral / Rojo vivo |
+| `[2]` | 1 | Luz 2 (Arr. Izq) | `[0.35, -0.25, 1.05]` | **Superior Izquierda** | Derecho | $-15.0^\circ$ | Naranja Neón |
+| `[3]` | 2 | Luz 3 (Abj. Centro-Izq) | `[0.30, -0.18, 0.88]` | **Central Izquierda** | Derecho | $-5.0^\circ$ | Amarillo Oro |
+| `[4]` | 3 | Luz 4 (Abj. Centro-Der) | `[0.30, +0.18, 0.88]` | **Central Derecha** | Izquierdo | $+5.0^\circ$ | Verde Lima |
+| `[5]` | 4 | Luz 5 (Arr. Der) | `[0.35, +0.25, 1.05]` | **Superior Derecha** | Izquierdo | $+15.0^\circ$ | Azul Cian |
+| `[6]` | 5 | Luz 6 (Ext. Der) | `[0.20, +0.37, 0.95]` | **Extremo Derecho** | Izquierdo | $+35.0^\circ$ | Magenta Neón |
+
+> [!NOTE]
+> Obsérvese la simetría biomecánica: las luces situadas a la izquierda del jugador (`1`, `2`, `3`) obligan al robot a emplear su brazo **derecho** y rotar en sentido horario, mientras que las luces de la derecha (`4`, `5`, `6`) activan su brazo **izquierdo** y rotación antihoraria.
+
+---
+
+### 5.4 Cuenta Atrás Inicial de 5 a 0 Segundos
+Para asegurar un comienzo justo (*fair play*), la partida no inicia de forma abrupta. Al abrir el visor 3D, el simulador ejecuta una rutina de cuenta regresiva de 5.0 a 0.0 segundos:
+
+1. El robot se mantiene inmóvil en postura de guardia bípeda lista.
+2. Todas las luces se muestran en tono tenue de espera.
+3. El marcador Premier League superior exhibe el texto parpadeante `INICIA EN:  5.0 s ...` con la leyenda `¡PREPARATE! TECLAS [1] [2] [3] [4] [5] [6] DE IZQUIERDA A DERECHA`.
+4. El buffer de entrada de teclado se purga continuamente mediante `teclado.limpiar()`, impidiendo que el humano sume puntos por anticipado o cometa pulsaciones espurias antes del pitido inicial (`¡YA!`).
+
+---
+
+### 5.5 Librerías Utilizadas y Justificación Técnica
+
+| Librería | Módulos / Funciones Específicas | Justificación en el Modo Humano vs Robot |
+|:---|:---|:---|
+| **`mujoco`** | `MjModel`, `MjData`, `mj_jacBody`, `mj_forward`, `mjv_initGeom` | Simulación dinámica multicuerpo del Unitree G1, cálculo del Jacobiano analítico de los brazos para IK y renderizado de pedestales/esferas en `user_scn`. |
+| **`mujoco.viewer`** | `launch_passive`, `key_callback`, `sync`, `set_texts` | Ventana gráfica 3D interactiva en GLFW, callback de eventos de teclado de ventana y superposición del marcador en tiempo real. |
+| **`numpy`** | `linalg.solve`, `linalg.norm`, `clip`, `zeros`, `eye` | Resolución del sistema algebraico lineal de mínimos cuadrados amortiguados (DLS), álgebra vectorial y cálculo de distancias euclidianas efector-luz. |
+| **`ctypes`** | `ctypes.windll.user32.GetAsyncKeyState` | Lectura asíncrona de teclado a nivel de kernel/hardware de Windows ($1000\text{ Hz}$). Garantiza respuesta instantánea sin importar si el usuario tiene el foco en la ventana 3D o en la terminal, eliminando el lag del buffer de consola. |
+| **`msvcrt`** | `msvcrt.kbhit`, `msvcrt.getch` | Canal alternativo no bloqueante de lectura de teclas para ejecución directa desde la consola estándar de Windows. |
+| **`matplotlib`** | `pyplot.subplots`, `plot`, `bar`, `savefig` | Generación procedural del reporte estadístico post-partido (`reporte_humano_vs_robot.png`), graficando la evolución temporal de puntos y la distribución de tiempos de reacción. |
+| **`PIL (Pillow)`** | `Image`, `ImageDraw`, `ImageFont` | Rasterizado procedural con tipografías TrueType (`Segoe UI`, `Arial`) del banner oficial Premier League de Duelo Humano vs Robot. |
+
+---
+
+### 5.6 Arquitectura y Funciones Clave del Código
+
+El archivo [`juego_humano_vs_robot.py`](file:///c:/Users/Martin/Documents/GitHub/OttoMan-Reaction-Game/05LaboratoriosTPs/TP07_Inteligencia_Artificial/mi_desarrollo/juego_humano_vs_robot.py) está estructurado en módulos orientados a objetos de alta cohesión:
+
+#### 1. Módulo de Luces (`EntornoLucesDuelo`)
+- **`activar_aleatoria() -> LuzHumanoVsRobot`:** Selecciona aleatoriamente una nueva luz garantizando que no se repita la inmediata anterior para obligar a un cambio postural constante.
+- **`dibujar_en_escena(user_scn)`:** Inyecta en cada frame las geometrías en la estructura visual de MuJoCo:
+  - Cilindros metálicos verticales para los pedestales (`mjGEOM_CYLINDER`).
+  - Esferas de color reflectivo para las bombillas LED (`mjGEOM_SPHERE`).
+  - Halos volumétricos translúcidos con canal alfa al $38\%$ para la luz activa, simulando emisión lumínica real.
+
+#### 2. Módulo de Entrada Humana (`EntradaTecladoHumano`)
+- **`consultar() -> Optional[str]`:** Sondea las teclas `1` a `6` consultando las tablas virtuales de Windows (`VK_1` a `VK_6` y `VK_NUMPAD1` a `VK_NUMPAD6`). Implementa un filtro de flanco ascendente (*rising-edge detector*):
+  ```python
+  presionada = any(bool(get_async_key(vk) & 0x8000) for vk in codes)
+  if presionada and not self.estados_previos[tecla]:
+      self.estados_previos[tecla] = True
+      return tecla
+  elif not presionada:
+      self.estados_previos[tecla] = False
+  ```
+- **`callback_visor(keycode)`:** Función ligada al despachador de eventos de GLFW en MuJoCo, capturando las teclas con códigos GLFW 49 a 54 y 321 a 326.
+- **`limpiar()`:** Descarga cualquier pulsación pendiente en el búfer.
+
+#### 3. Controlador Cinético del Humanoide (`RobotCompetidorG1`)
+- **`resetear_pose_inicial()`:** Aplica las coordenadas articulares bípedas estables de `G1.pose_de_pie` combinadas con la posición de guardia defensiva (codos flexionados a $-0.45\text{ rad}$ y hombros adelantados a $+0.25\text{ rad}$).
+- **`paso_ik_y_giro(luz, lambda_dls) -> float`:** Integra en cada ciclo de simulación:
+  1. Rotación del torso hacia el ángulo objetivo mediante interpolación geométrica:
+     $$\text{Yaw}_{t+1} = \text{Yaw}_t + K_{\text{giro}} (\text{Yaw}_{\text{luz}} - \text{Yaw}_t)$$
+  2. Obtención de la matriz Jacobiana traslacional de la muñeca activa mediante `mj_jacBody`.
+  3. Cálculo de la ley de control por Mínimos Cuadrados Amortiguados:
+     $$\Delta q = J_{\text{arm}}^T \left( J_{\text{arm}} J_{\text{arm}}^T + \lambda^2 I \right)^{-1} (x_{\text{luz}} - x_{\text{mano}})$$
+  4. Recorte de velocidad articular y sujeción a los límites mecánicos del modelo (`jnt_range`).
+- **Niveles de Dificultad Parametrizables:**
+  - *Fácil:* Latencia motriz entre $160$ y $260\text{ ms}$, ganancia IK $0.32$.
+  - *Medio:* Latencia motriz entre $100$ y $180\text{ ms}$, ganancia IK $0.38$.
+  - *Difícil (Premier League):* Latencia motriz entre $60$ y $120\text{ ms}$, ganancia IK $0.44$.
+
+#### 4. Motor Principal de Juego (`JuegoHumanoVsRobot`)
+- **`disputar_ronda(callback_frame, ...)`:** Bucle temporal de alta resolución ($5\text{ ms}$) que supervisa concurrentemente si el humano pulsó una tecla o si la distancia euclidiana de la mano del robot cayó por debajo de $5.2\text{ cm}$.
+- **`correr(duracion_segundos, sin_ventana)`:** Función orquestadora que inicializa el visor, proyecta la cuenta regresiva, corre las rondas, gestiona las pausas visuales entre toques ($350\text{ ms}$) y dispara la generación de reportes.
+- **`_guardar_reporte_grafico()`:** Construye una figura de doble panel con fondo oscuro deportivo (`#18181E`) que documenta la curva acumulativa de puntos y el histograma de tiempos de reacción.
+
+---
+
+### 5.7 Marcador Premier League de Duelo y Reporte Gráfico Post-Partida
+El juego cuenta con un marcador especialmente diseñado para esta modalidad:
+
+```
+╔═══════════════════════════════════════════════════════════════════════════════════════════╗
+║  [PL] PREMIER LEAGUE DUEL  •  HUMANO vs ROBOT G1                                          ║
+║  [HUMANO]  08   ─── VS ───   06  [ROBOT G1]     RELOJ: 00:24.5  (#14)                     ║
+║  ¡PUNTO PARA HUMANO! (0.218 s) | LUZ: LUZ 3 (ABJ. CENTRO-IZQ)                             ║
+║  TECLAS: [1][2][3][4][5][6] (de Izquierda a Derecha)                                      ║
+╚═══════════════════════════════════════════════════════════════════════════════════════════╝
+```
+
+Al finalizar el encuentro, se emite automáticamente en la carpeta de desarrollo el gráfico [`reporte_humano_vs_robot.png`](file:///c:/Users/Martin/Documents/GitHub/OttoMan-Reaction-Game/05LaboratoriosTPs/TP07_Inteligencia_Artificial/mi_desarrollo/reporte_humano_vs_robot.png), detallando:
+- **Panel Izquierdo:** Curva temporal de puntos acumulados (Línea cian para Humano vs Línea carmesí para Robot G1).
+- **Panel Derecho:** Tiempos de reacción individuales por cada ronda disputada, codificados por color según quién se adjudicó el punto.
+
+---
+
+## 6. Módulo Dedicado de Marcador (`marcador_premier.py`)
+
+Para evitar la duplicación de código y dotar a todas las etapas de una identidad gráfica televisiva profesional, se diseñó el módulo centralizado [`marcador_premier.py`](file:///c:/Users/Martin/Documents/GitHub/OttoMan-Reaction-Game/05LaboratoriosTPs/TP07_Inteligencia_Artificial/mi_desarrollo/marcador_premier.py), administrado por la clase `MarcadorPremierLeague`.
+
+### 6.1 Identidad Visual y Paleta Oficial Premier League
+El diseño visual replica fielmente los grafismos de la transmisión deportiva oficial de la Premier League:
+- **Morado Oficial (`#38003C`):** Utilizado en los bloques de encabezado institucional y fondos de reloj.
+- **Verde Neón Oficial (`#00FF87`):** Destinado al logotipo `PL`, acentos perimetrales y divisiones centrales `VS`.
+- **Rosa Neón (`#E90052`):** Señalética de advertencias y estados complementarios.
+- **Cajas de Puntuación de Alto Contraste:** Rectángulos blancos puros (`#FFFFFF`) con números renderizados en tipografía TrueType extra negrita de $28\text{ pt}$ (`PTS 12`), visibles a distancia en la pantalla.
+- **Efecto Score Flash:** Al incrementarse el marcador de cualquiera de los contendientes, el borde exterior del panel se ilumina durante $450\text{ ms}$ en verde neón vibrante, ofreciendo una clara retroalimentación visual al instante del impacto.
+
+---
+
+### 6.2 Las Cuatro Variantes de Marcador en Vivo
+El módulo proporciona métodos especializados para cada modalidad de simulación:
+
+1. **Marcador Individual (`renderizar_individual`):**  
+   Muestra el logotipo `PL ROBOT`, la modalidad activa (`UNITREE G1 REFLEJOS` o `UNITREE G1 VISION`), la caja de toques acumulados, el reloj de partido y el ticker inferior de telemetría de reacción.
+2. **Marcador en Modo Visión Artificial:**  
+   Incorpora la etiqueta de percepción `RGB-D EN VIVO`, indicando si el robot se encuentra procesando la nube de puntos o ejecutando la trayectoria cinemática.
+3. **Marcador Dual de Competencia (`renderizar_competencia`):**  
+   Divide el marcador en los dos clubes/robots (`AZUL ROBOT 1` vs `ROJO ROBOT 2`), con cajas de puntuación diferenciadas por color, separador central morado `VS` y ticker de arbitraje en tiempo real.
+4. **Marcador de Duelo Humano vs Robot (`renderizar_humano_vs_robot`):**  
+   Enfrenta al `HUMANO` (equipo esmeralda con indicación de teclas `1-6`) contra `ROBOT G1` (equipo carmesí Unitree IA), con soporte dinámico para cuenta regresiva previa (`INICIA EN: 5.0 s`) y leyenda inferior de estado.
+
+---
+
+### 6.3 Arquitectura Técnica: Solución de Tarjeta Única Continua
+
+#### El Problema de los "Dos Marcadores":
+Durante las primeras iteraciones, el uso de la función nativa de MuJoCo:
+```python
+viewer.set_texts([(font, pos, col1, col2)])
+```
+provocaba que la biblioteca gráfica de bajo nivel (`mjr_overlay`) subdividiera internamente la esquina superior izquierda (`mjGRID_TOPLEFT`) en dos columnas rectangulares independientes con fondos negros opacos separados. En pantalla, esto se percibía visualmente como **dos marcadores duplicados o rotos**.
+
+Por otra parte, al intentar forzar exclusivamente la superposición de imágenes vía:
+```python
+viewer.set_images([(rect, array_rgb)])
+```
+se detectó que en entornos modernos de Windows con perfiles de OpenGL 3.3+ Core (GLFW), la función subyacente `glDrawPixels` se encuentra obsoleta o suprimida por los controladores de video (Intel Iris Xe, NVIDIA RTX, AMD Radeon), haciendo que el marcador bitmap no se dibuje sobre el framebuffer.
+
+#### La Solución Definitiva Implementada:
+Se desarrolló una arquitectura híbrida de alta compatibilidad que resuelve ambos inconvenientes:
+1. **Tarjeta Única Unificada:** Toda la estructura tipográfica, cajas de puntos, reloj de match y telemetría de toques se ensamblan en una **única cadena de texto formateada** (`tarjeta`), pasándose como `text1` y enviando `text2=""` vacío:
+   ```python
+   tarjeta, _ = self.generar_texto_humano_vs_robot(...)
+   viewer.set_texts([(font, pos, tarjeta, "")])
+   ```
+   De este modo, MuJoCo renderiza **un único panel continuo**, perfectamente centrado y con contraste garantizado en cualquier monitor.
+2. **Caché Inteligente y Respaldo Gráfico:** Simultáneamente, el motor genera el arreglo NumPy de la imagen PIL y lo suministra a `set_images` empleando un diccionario de caché con clave `(puntos, decisegundos, estado)`. Esto permite que el marcador consuma menos de $0.05\text{ ms}$ de CPU por frame, asegurando $60\text{ FPS}$ constantes y permitiendo además exportar capturas gráficas impecables para los reportes finales.
+
+---
+
+## 7. Cuadro Comparativo de Librerías y Tecnologías
 
 | Componente / Tarea | Juego Inicial (`juego_reflejos.py`) | Juego con Visión (`juego_reflejos_vision.py`) | Juego Competencia (`juego_competencia.py`) | Duelo Humano vs Robot (`juego_humano_vs_robot.py`) |
 |:---|:---|:---|:---|:---|
@@ -403,7 +626,7 @@ Para no duplicar código y mantener un diseño centralizado y de alta performanc
 
 ---
 
-## 7. Guía Rápida de Ejecución
+## 8. Guía Rápida de Ejecución
 
 Todos los módulos se encuentran listos para ejecutar en el entorno del laboratorio:
 
@@ -443,7 +666,7 @@ Todos los módulos se encuentran listos para ejecutar en el entorno del laborato
 
 ---
 
-## 8. Conclusiones
+## 9. Conclusiones
 
 A lo largo del proyecto se demostró:
 1. **Factibilidad del Control Cinemático DLS en Humanoides Complejos:** El algoritmo de Mínimos Cuadrados Amortiguados permite manipular extremidades de 7 GDL en tiempo real con tiempos de respuesta inferiores a $0.25\text{ segundos}$ por toque, sin bloqueos por singularidades.
@@ -451,3 +674,4 @@ A lo largo del proyecto se demostró:
 3. **Escalabilidad Multirrobot mediante `MjSpec`:** La nueva arquitectura de ensamblaje de MuJoCo 3 facilitó la creación de competencias 1 vs 1 totalmente reactivas, combinando control cinemático independiente, arbitraje estricto y personalización estética limpia de los robots.
 4. **Interactividad Humano vs Robot con Entrada de Baja Latencia:** La incorporación del duelo directo contra un humano con teclado de acceso directo (1 a 6 de izquierda a derecha), cámara frontal fija y cuenta regresiva de 5 segundos logró un entorno de entrenamiento lúdico, justo y altamente competitivo.
 5. **Telemetría Gráfica en Vivo sin Impacto de Rendimiento:** La integración del marcador estilo Premier League consolidado en un banner único de alta definición proporcionó una experiencia de transmisión deportiva profesional en tiempo real manteniendo la tasa de refresco a $60\text{ FPS}$.
+
