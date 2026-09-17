@@ -228,11 +228,13 @@ class EntradaTecladoHumano:
         self.estados_previos = {tecla: False for tecla in self.mapa_vk}
         self.ultima_tecla_pulsada: Optional[str] = None
         self.tiempo_ultima_pulsacion: float = 0.0
+        self.cualquier_tecla_pulsada: bool = False
 
     def limpiar(self):
         """Reinicia el estado de teclas acumuladas."""
         self.ultima_tecla_pulsada = None
         self.tiempo_ultima_pulsacion = 0.0
+        self.cualquier_tecla_pulsada = False
         # Resetear estados de hardware
         try:
             get_async_key = ctypes.windll.user32.GetAsyncKeyState
@@ -244,6 +246,7 @@ class EntradaTecladoHumano:
 
     def callback_visor(self, keycode: int):
         """Callback GLFW nativo de MuJoCo viewer."""
+        self.cualquier_tecla_pulsada = True
         # GLFW: 49 ('1') a 54 ('6'), y teclado numérico 321 a 326
         tecla = None
         if 49 <= keycode <= 54:
@@ -288,6 +291,31 @@ class EntradaTecladoHumano:
             pass
 
         return None
+
+    def consultar_cualquier_tecla(self) -> bool:
+        """Detecta si se presionó cualquier tecla o botón para continuar o salir."""
+        if self.cualquier_tecla_pulsada:
+            self.cualquier_tecla_pulsada = False
+            return True
+
+        try:
+            get_async_key = ctypes.windll.user32.GetAsyncKeyState
+            teclas_chequeo = [0x20, 0x0D, 0x1B, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36]
+            for vk in teclas_chequeo:
+                if bool(get_async_key(vk) & 0x8000):
+                    return True
+        except Exception:
+            pass
+
+        try:
+            import msvcrt
+            if msvcrt.kbhit():
+                msvcrt.getch()
+                return True
+        except Exception:
+            pass
+
+        return False
 
 
 # =====================================================================
@@ -629,6 +657,34 @@ class JuegoHumanoVsRobot:
 
                 ronda += 1
                 time.sleep(0.35)  # Pausa visual entre toques
+
+            # -------------------------------------------------------------
+            # PANTALLA FINAL: GANADOR Y RESULTADOS (NO CIERRA HASTA TOCAR BOTÓN)
+            # -------------------------------------------------------------
+            print("\n  ==============================================================")
+            print("    ¡TIEMPO CUMPLIDO! Mostrando ganador y resultados en pantalla.")
+            print("    -> Presiona cualquier tecla o botón para finalizar...")
+            print("  ==============================================================\n")
+
+            # Breve pausa y limpiar acumulados para no capturar teclas previas
+            time.sleep(0.3)
+            self.teclado.limpiar()
+
+            while viewer.is_running():
+                self.marcador.aplicar_visor_fin_de_juego(
+                    viewer=viewer,
+                    puntos_humano=self.puntos_humano,
+                    puntos_robot=self.puntos_robot,
+                    historial=self.historial_rondas
+                )
+                self.entorno.dibujar_en_escena(viewer.user_scn)
+                viewer.sync()
+
+                if self.teclado.consultar_cualquier_tecla():
+                    print("  -> ¡Botón detectado! Finalizando y guardando reporte...\n")
+                    break
+
+                time.sleep(0.03)
 
         return self.imprimir_y_guardar_resultados()
 
